@@ -1,2 +1,0 @@
-database_path = [/home/sergey/lightning-manager-versions/lightning-manager-alternative]
-

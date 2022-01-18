@@ -87,6 +87,9 @@ symmetric_decrypt_bytes = lambda message, key : AES.new(transform_password(key.e
 
 
 # хеширование пароля  100 раз просто для дополнительной безопасности
+'''
+хешируется 100 раз и выдает на выходе тип bytes
+'''
 def hash_100(password: str) -> str:
     for i in range(100):
         password = hashlib.sha3_256(password.encode()).hexdigest()
@@ -145,17 +148,15 @@ def authentication(adress : str):
     
     db = read_db(adress)
 
-    print(db)
-
     # получение данных для входа
-    username, password = get_username(), get_hashed_password()
+    username, password = hash_100(get_username()), get_hashed_password()
 
     # если результат от шифровки кодового слова хешем полученного пароля совпадает со
     # словом в начале файла (оно по идее зашифровано верным паролем) то мы проверяем правильность
     # имени пользователя и впускаем этого черта
-    if symmetric_encrypt_bytes(KODE_WORD.encode(), password) == db[1]['auth'][0] and hash_100(username) in db[0]:
+    if symmetric_encrypt_bytes(KODE_WORD.encode(), password) == db[1]['auth'][0] and username in db[0]:
         message_success('authentication passed')
-        return True
+        return [username, password, db]
     return False
         
 
@@ -179,7 +180,7 @@ def authentication_first_time(adress : str):
     message('new database process creation started')
     
     # получаем данные пользователя для последующего входа
-    username, password = get_username(), get_hashed_password()
+    username, password = hash_100(get_username()), get_hashed_password()
 
     message('now i will encrypt the database and write data')
 
@@ -189,7 +190,7 @@ def authentication_first_time(adress : str):
 
     write_to_db(
         adress, # тут понятно адрес
-        [hash_100(username)], # тут список с именами пользователей
+        [username], # тут список с именами пользователей
         {
             'auth' : [encrypted_auth] # тут по образцу снизу
         }
@@ -205,7 +206,8 @@ def authentication_first_time(adress : str):
 {
     'auth' : зашифрованное кодовое слово # первая строчка уникальна
 
-    хешированное имя пароля: [зашифрованное название пароля, сам пароль] # вся база хранится в виде таких строчек
+    
+    'хешированное имя пароля'  : [зашифрованное название пароля, сам пароль] # вся база хранится в виде таких строчек
     остальные пароли по тому же примеру
 }
 '''
