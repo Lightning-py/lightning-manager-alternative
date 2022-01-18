@@ -138,18 +138,22 @@ def message(text):
 теоретически, расшифровать базу можно любым паролем, но от правильности пароля будет зависеть правильность расшифровки
 то есть если расшифровывать неправильным паролем будет беспорядочная последовательность байт и следовательно нечитаемый текст
 
+функция проверена и работает правильно
+
 '''
 def authentication(adress : str):
     
     db = read_db(adress)
 
+    print(db)
+
     # получение данных для входа
     username, password = get_username(), get_hashed_password()
-    
+
     # если результат от шифровки кодового слова хешем полученного пароля совпадает со
     # словом в начале файла (оно по идее зашифровано верным паролем) то мы проверяем правильность
     # имени пользователя и впускаем этого черта
-    if symmetric_encrypt_bytes(KODE_WORD, password) == db[1]['auth'] and hashlib.sha3_256(username.encode()).hexdigest() in db[0]:
+    if symmetric_encrypt_bytes(KODE_WORD.encode(), password) == db[1]['auth'][0] and hash_100(username) in db[0]:
         message_success('authentication passed')
         return True
     return False
@@ -157,6 +161,10 @@ def authentication(adress : str):
 
 # вот это надо активировать если запускаем приложение первый раз, оно создаст и запишет данные для входа, по типу пароля и списка имен пользователей
 # ну или создаем новую базу данных
+'''
+создаем базу данных с и записываем в нее только хешированное имя пользователя
+
+'''
 def authentication_first_time(adress : str):
     
     # читаем базу данных, чтобы удостовериться в том, что мы ненароком не перезапишем уже существующуу базу
@@ -164,8 +172,8 @@ def authentication_first_time(adress : str):
 
     db = read_db(adress)
 
-    if not len(db[1]) == 0:
-        return
+    # if not len(db[1]) == 0:
+    #     return
     
     
     message('new database process creation started')
@@ -180,14 +188,14 @@ def authentication_first_time(adress : str):
     encrypted_auth = symmetric_encrypt_bytes(KODE_WORD.encode(), password)
 
     write_to_db(
-        [username],
+        adress, # тут понятно адрес
+        [hash_100(username)], # тут список с именами пользователей
         {
-            'auth' : [encrypted_auth]
+            'auth' : [encrypted_auth] # тут по образцу снизу
         }
     )
 
     message_success('database encrypted and successfully writed')
-    
 
     
 '''
