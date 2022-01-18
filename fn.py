@@ -146,6 +146,10 @@ def message(text):
 '''
 def authentication(adress : str):
     
+    if not os.path.exists(adress):
+        message_errors('database does not exists')
+        exit()
+
     db = read_db(adress)
 
     # получение данных для входа
@@ -157,7 +161,8 @@ def authentication(adress : str):
     if symmetric_encrypt_bytes(KODE_WORD.encode(), password) == db[1]['auth'][0] and username in db[0]:
         message_success('authentication passed')
         return [username, password, db]
-    return False
+    message_errors('wrong password or username')
+    exit()
         
 
 # вот это надо активировать если запускаем приложение первый раз, оно создаст и запишет данные для входа, по типу пароля и списка имен пользователей
