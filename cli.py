@@ -5,6 +5,7 @@ import pickle
 import hashlib
 from Crypto.Cipher import AES
 import colorama
+import clipboard
 
 from fn import *
 
@@ -22,42 +23,93 @@ def commands():
 @click.argument('password')
 @click.argument('name')
 @click.argument('description', default='')
-def write(db_adress: str, password: str, name: str, description: str):
-    # password for db is key
+@click.option('--username', prompt=True)
+@click.option(
+    "--user-password", prompt=True, hide_input=True
+)
+def write(db_adress: str, password: str, name: str, description: str, username: str, user_password):
+    # пароль от базы данных это и есть ключ шифрования
 
-    hashed_username, password_for_db, db = authentication(db_adress)
+    if os.path.exists(db_adress):
     
-    encrypted_password = symmetric_encrypt_bytes(password.encode(), password_for_db)
+        hashed_username, password_for_db, db = authentication(db_adress, username, user_password)
+        
+        encrypted_password = symmetric_encrypt_bytes(password.encode(), password_for_db)
 
-    if description:
-        encrypted_description = symmetric_encrypt_bytes(description.encode(), password_for_db)
+
+        # проверяем описание на пустоту, ведь если зашифровать его путой строкой, то может быть ошибка
+        if description:
+            encrypted_description = symmetric_encrypt_bytes(description.encode(), password_for_db)
+        else:
+            encrypted_description = b''
+
+
+        # меняем в базе нужные параметры
+        db[1][hashlib.sha3_256(name.encode()).hexdigest()] = [encrypted_password, encrypted_description]
+
+
+        # записываем все в базу и дело с концом
+        write_to_db(
+            db_adress,
+            db[0],
+            db[1]
+        )
+
+        message_success('database writed')
+
     else:
-        encrypted_description = b''
+        
+        hashed_username, password_for_db, db = authentication_first_time(db_adress, username, user_password)
 
-    db[1][hashlib.sha3_256(name.encode()).hexdigest()] = [encrypted_password, encrypted_description]
+        encrypted_password = symmetric_encrypt_bytes(password.encode(), password_for_db)
 
-    write_to_db(
-        db_adress,
-        db[0],
-        db[1]
-    )
 
-    message_success('database writed')
+        # проверяем описание на пустоту, ведь если зашифровать его путой строкой, то может быть ошибка
+        if description:
+            encrypted_description = symmetric_encrypt_bytes(description.encode(), password_for_db)
+        else:
+            encrypted_description = b''
 
+
+        # меняем в базе нужные параметры
+        db[1][hashlib.sha3_256(name.encode()).hexdigest()] = [encrypted_password, encrypted_description]
+
+
+        # записываем все в базу и дело с концом
+        write_to_db(
+            db_adress,
+            db[0],
+            db[1]
+        )
+
+        message_success('database writed')
 
 @click.command()
 @click.argument('db_adress')
 @click.argument('name')
-def read(db_adress: str, name: str):
-    hashed_username, password_for_db, db = authentication(db_adress)
+@click.option('--hidden')
+@click.option('--username', prompt=True)
+@click.option(
+    "--password", prompt=True, hide_input=True
+)
+def read(hidden, db_adress: str, name: str, username : str, password : str):
+
+    # получаем некоторые данные и проверяем доступ
+    hashed_username, password_for_db, db = authentication(db_adress, username, password)
 
     hashed_name = hashlib.sha3_256(name.encode()).hexdigest()
 
+
+    # os.system('clear')
+
+    # шифруем
     decrypted_password = symmetric_decrypt_bytes(
         db[1][hashed_name][0],
         password_for_db
     ).decode()
 
+
+    # хитро расшифровываем описание
     if db[1][hashed_name][1]:
         decrypted_description = symmetric_decrypt_bytes(
             db[1][hashed_name][1],
@@ -66,22 +118,81 @@ def read(db_adress: str, name: str):
     else:
         decrypted_description = ''
 
-    if decrypted_description:
-        print(
-            colorama.Fore.LIGHTGREEN_EX + 'password: ' + colorama.Fore.LIGHTBLUE_EX + decrypted_password,
-            colorama.Fore.LIGHTGREEN_EX + 'description: ' + colorama.Fore.LIGHTBLUE_EX + decrypted_description
-        )
+    if hidden != 'True':
+        # красиво выводим
+        if decrypted_description:
+            print(
+                colorama.Fore.LIGHTYELLOW_EX, 'password:\n', colorama.Fore.LIGHTMAGENTA_EX, decrypted_password,
+                colorama.Fore.LIGHTYELLOW_EX, '\ndescription:\n', colorama.Fore.LIGHTMAGENTA_EX, decrypted_description
+            )
+        else:
+            print(
+                colorama.Fore.LIGHTGREEN_EX + 'password: ' + colorama.Fore.LIGHTBLUE_EX + decrypted_password
+            )
+        
+        print('#' * 40)
     else:
-        print(
-            colorama.Fore.LIGHTGREEN_EX + 'password: ' + colorama.Fore.LIGHTBLUE_EX + decrypted_password
-        )
+        clipboard.copy(decrypted_password)
+
+
+
+@click.command()
+@click.argument('db_adress')
+@click.option('--username', prompt=True)
+@click.option(
+    "--password", prompt=True, hide_input=True
+)
+def read_all(db_adress: str, username: str, password : str):
+
+    hashed_username, password_for_db, db = authentication(db_adress, username, password)
+
+    for password in db[1]:
+        if not password == 'auth':
+            # print(password, db[1][password])
+
+            # шифруем
+            decrypted_password = symmetric_decrypt_bytes(
+                db[1][password][0],
+                password_for_db
+            ).decode()
+
+
+            # хитро расшифровываем описание
+            if db[1][password][1]:
+                decrypted_description = symmetric_decrypt_bytes(
+                    db[1][password][1],
+                    password_for_db
+                ).decode()
+            else:
+                decrypted_description = ''
+
+
+            # красиво выводим
+            if decrypted_description:
+                print(
+                    colorama.Fore.LIGHTYELLOW_EX, 'password:\n', colorama.Fore.LIGHTMAGENTA_EX, decrypted_password,
+                    colorama.Fore.LIGHTYELLOW_EX, '\ndescription:\n', colorama.Fore.LIGHTMAGENTA_EX, decrypted_description
+                )
+            else:
+                print(
+                    colorama.Fore.LIGHTGREEN_EX + 'password: ' + colorama.Fore.LIGHTBLUE_EX + decrypted_password
+                )
+            
+            print('#' * 40)
+
+
+
+
+
 
 #--- добавление команд в общую группу
 commands.add_command(write)
 commands.add_command(read)
+commands.add_command(read_all)
 
 
 #--- запуск команд по вызову
 if __name__ == '__main__':
-    get_cyphering_function()
     commands()
+
+    

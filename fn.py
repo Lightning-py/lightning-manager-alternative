@@ -98,10 +98,6 @@ def hash_100(password: str) -> str:
 
 #----- импортирование пользовательской функции шифрования
 
-def get_cyphering_function():
-
-    from user_functions import transform_password, symmetric_encrypt_str, symmetric_encrypt_bytes, symmetric_decrypt_str, symmetric_decrypt_bytes
-
 
 #--- всякое барахло для того чтобы войти и разблокировать бд
 
@@ -113,14 +109,15 @@ def get_username() -> str:
     )
 
 # красивый ввод пароля пользователя и хеширование
-def get_hashed_password() -> str:
+def get_hashed_password(password) -> str:
     # ну а тут пусть будет светло-желтый
 
     # тут просто хешируем пароль сразу, ибо аче
     return hash_100(
-        input(
-            colorama.Fore.LIGHTBLUE_EX + 'enter the password : ' + colorama.Fore.LIGHTCYAN_EX
-        )
+        # input(
+        #     colorama.Fore.LIGHTBLUE_EX + 'enter the password : ' + colorama.Fore.LIGHTCYAN_EX
+        # )
+        password
     )
 
 # функция для вывода зеленым текстом
@@ -144,8 +141,8 @@ def message(text):
 функция проверена и работает правильно
 
 '''
-def authentication(adress : str):
-    
+def authentication(adress : str, username, password):
+
     if not os.path.exists(adress):
         message_errors('database does not exists')
         exit()
@@ -153,7 +150,7 @@ def authentication(adress : str):
     db = read_db(adress)
 
     # получение данных для входа
-    username, password = hash_100(get_username()), get_hashed_password()
+    username, password = hash_100(username), get_hashed_password(password)
 
     # если результат от шифровки кодового слова хешем полученного пароля совпадает со
     # словом в начале файла (оно по идее зашифровано верным паролем) то мы проверяем правильность
@@ -171,8 +168,8 @@ def authentication(adress : str):
 создаем базу данных с и записываем в нее только хешированное имя пользователя
 
 '''
-def authentication_first_time(adress : str):
-    
+def authentication_first_time(adress : str, username, password):
+
     # читаем базу данных, чтобы удостовериться в том, что мы ненароком не перезапишем уже существующуу базу
     # то есть просто проверяем базу на пустоту
 
@@ -185,7 +182,7 @@ def authentication_first_time(adress : str):
     message('new database process creation started')
     
     # получаем данные пользователя для последующего входа
-    username, password = hash_100(get_username()), get_hashed_password()
+    username, password = hash_100(username), get_hashed_password(password)
 
     message('now i will encrypt the database and write data')
 
@@ -202,6 +199,11 @@ def authentication_first_time(adress : str):
     )
 
     message_success('database encrypted and successfully writed')
+
+    db = read_db(adress)
+
+
+    return [username, password, db]
 
     
 '''
