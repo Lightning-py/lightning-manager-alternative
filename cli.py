@@ -219,7 +219,13 @@ def remove(db_adress: str, name: str, username: str, password: str):
 
     message_success('password succesfully removed from the database')
 
-
+@click.command()
+def about():
+    with open('README.md') as file:
+        print(
+            colorama.Fore.YELLOW +
+            file.read().replace('#', '').replace('`', '').replace('**', '')
+        )
 
 
 
@@ -228,6 +234,7 @@ commands.add_command(write)
 commands.add_command(read)
 commands.add_command(read_all)
 commands.add_command(remove)
+commands.add_command(about)
 
 
 #--- запуск команд по вызову
