@@ -84,6 +84,8 @@ def write(db_adress: str, password: str, name: str, description: str, username: 
 
         message_success('database writed')
 
+
+# команда чтения из базы одного пароля и вывода на экран
 @click.command()
 @click.argument('db_adress')
 @click.argument('name')
@@ -135,7 +137,7 @@ def read(hidden, db_adress: str, name: str, username : str, password : str):
         clipboard.copy(decrypted_password)
 
 
-
+# команда для чтения из базы всех паролей
 @click.command()
 @click.argument('db_adress')
 @click.option('--username', prompt=True)
@@ -180,6 +182,42 @@ def read_all(db_adress: str, username: str, password : str):
             
             print('#' * 40)
 
+@click.command()
+@click.argument('db_adress')
+@click.argument('name')
+@click.option('--username', prompt=True)
+@click.option(
+    "--password", prompt=True, hide_input=True
+)
+def remove(db_adress: str, name: str, username: str, password: str):
+    
+    hashed_username, password_for_db, db = authentication(db_adress, username, password)
+
+    if not os.path.exists(db_adress):
+        message_errors('database is not exists')
+        return
+    
+    try:
+        db[1].pop(
+            hashlib.sha3_256(name.encode()).hexdigest()
+        )
+    except:
+        message_errors('no password with this name')
+        return 
+    
+
+    try:
+        write_to_db(
+            db_adress,
+            db[0],
+            db[1]
+        )
+    except Exception as exc:
+        message_errors(str(exc))
+        return
+    
+
+    message_success('password succesfully removed from the database')
 
 
 
@@ -189,10 +227,9 @@ def read_all(db_adress: str, username: str, password : str):
 commands.add_command(write)
 commands.add_command(read)
 commands.add_command(read_all)
+commands.add_command(remove)
 
 
 #--- запуск команд по вызову
 if __name__ == '__main__':
     commands()
-
-    
